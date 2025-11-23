@@ -41,7 +41,7 @@ impl CGErrorToResult for CGError {
     }
 }
 
-pub fn get_display_resolutino(display_id: MacOSDisplayId) -> Resolution {
+pub fn get_display_resolution(display_id: MacOSDisplayId) -> Resolution {
     let width = objc2_core_graphics::CGDisplayPixelsWide(display_id) as u32;
     let height = objc2_core_graphics::CGDisplayPixelsHigh(display_id) as u32;
 
@@ -146,19 +146,17 @@ unsafe extern "C-unwind" fn display_callback(
         let event = if flags.contains(CGDisplayChangeSummaryFlags::AddFlag) {
             user_info
                 .previous_resolution
-                .insert(display, get_display_resolutino(display));
+                .insert(display, get_display_resolution(display));
 
             DisplayEvent::Added(id)
         } else if flags.contains(CGDisplayChangeSummaryFlags::RemoveFlag) {
             user_info.previous_resolution.remove(&display);
 
             DisplayEvent::Removed(id)
-        } else if flags.contains(CGDisplayChangeSummaryFlags::SetModeFlag)
-            || flags.contains(CGDisplayChangeSummaryFlags::DesktopShapeChangedFlag)
-        {
+        } else if flags.contains(CGDisplayChangeSummaryFlags::SetModeFlag) {
             DisplayEvent::ResolutionChanged {
                 id,
-                resolution: get_display_resolutino(display),
+                resolution: get_display_resolution(display),
             }
         } else {
             return;
