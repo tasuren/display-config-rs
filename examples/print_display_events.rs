@@ -5,13 +5,10 @@ fn main() {
 
     monitor
         .set_callback(|event| match event {
-            DisplayEvent::Added(id) => println!("Display added: {:?}", id),
-            DisplayEvent::Removed(id) => println!("Display removed: {:?}", id),
-            DisplayEvent::ResolutionChanged { id, resolution } => {
-                println!(
-                    "Display {id:?} changed resolution to {}x{}",
-                    resolution.width, resolution.height
-                )
+            DisplayEvent::Added(id) => println!("Display added: {id:?}"),
+            DisplayEvent::Removed(id) => println!("Display removed: {id:?}"),
+            DisplayEvent::ConfigurationChanged(id) => {
+                println!("Display configuration changed: {id:?}")
             }
         })
         .expect("Failed to set the callback.");

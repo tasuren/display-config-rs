@@ -33,14 +33,13 @@ pub struct Resolution {
 pub enum DisplayEvent {
     Added(DisplayId),
     Removed(DisplayId),
-    ResolutionChanged {
-        id: DisplayId,
-        resolution: Resolution,
-    },
+    ConfigurationChanged(DisplayId),
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("Initialization failed.")]
+    InitializationError(PlatformError),
     #[error("A platform-specific error has occurred.")]
     PlatformError(PlatformError),
 }

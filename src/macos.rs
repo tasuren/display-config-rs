@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     ffi::c_void,
     sync::{Arc, Mutex},
 };
@@ -9,7 +8,7 @@ use objc2_core_graphics::{
     CGDisplayRemoveReconfigurationCallback, CGError,
 };
 
-use crate::{DisplayEvent, DisplayEventCallback, DisplayId, Resolution};
+use crate::{DisplayEvent, DisplayEventCallback, DisplayId};
 
 pub type MacOSDisplayId = CGDirectDisplayID;
 
@@ -41,16 +40,8 @@ impl CGErrorToResult for CGError {
     }
 }
 
-pub fn get_display_resolution(display_id: MacOSDisplayId) -> Resolution {
-    let width = objc2_core_graphics::CGDisplayPixelsWide(display_id) as u32;
-    let height = objc2_core_graphics::CGDisplayPixelsHigh(display_id) as u32;
-
-    Resolution { width, height }
-}
-
 struct UserInfo {
     callback: Option<DisplayEventCallback>,
-    previous_resolution: HashMap<CGDirectDisplayID, Resolution>,
 }
 
 pub struct MacOSDisplayObserver {
@@ -59,10 +50,7 @@ pub struct MacOSDisplayObserver {
 
 impl MacOSDisplayObserver {
     pub fn new() -> Self {
-        let state = Arc::new(Mutex::new(UserInfo {
-            callback: None,
-            previous_resolution: HashMap::new(),
-        }));
+        let state = Arc::new(Mutex::new(UserInfo { callback: None }));
 
         Self { user_info: state }
     }
@@ -144,20 +132,11 @@ unsafe extern "C-unwind" fn display_callback(
         let id = DisplayId(display);
 
         let event = if flags.contains(CGDisplayChangeSummaryFlags::AddFlag) {
-            user_info
-                .previous_resolution
-                .insert(display, get_display_resolution(display));
-
             DisplayEvent::Added(id)
         } else if flags.contains(CGDisplayChangeSummaryFlags::RemoveFlag) {
-            user_info.previous_resolution.remove(&display);
-
             DisplayEvent::Removed(id)
         } else if flags.contains(CGDisplayChangeSummaryFlags::SetModeFlag) {
-            DisplayEvent::ResolutionChanged {
-                id,
-                resolution: get_display_resolution(display),
-            }
+            DisplayEvent::ConfigurationChanged(id)
         } else {
             return;
         };
