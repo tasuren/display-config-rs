@@ -72,8 +72,8 @@ impl WindowsDisplayId {
 impl From<RECT> for Resolution {
     fn from(value: RECT) -> Self {
         Self {
-            width: (value.right - value.left) as _,
-            height: (value.top - value.bottom) as _,
+            width: value.right as _,
+            height: value.bottom as _,
         }
     }
 }
