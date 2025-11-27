@@ -58,12 +58,12 @@ impl WindowsDisplayId {
         Ok(Self { name })
     }
 
-    /// Device identification strings.
-    /// e.g. `\\?\DISPLAY#GSM5959#5&2c6c93d8&0&UID4352#{e6f07b5f-ee97-4a05-9d08-059f23856a92}`
+    /// Get device identification string. This is also called device path.
+    /// e.g. `\\?\DISPLAY1..."`
     ///
     /// See [Microsoft's documentation][docs] for more details.
     ///
-    /// [docs]: https://learn.microsoft.com/en-us/windows-hardware/drivers/install/device-identification-strings
+    /// [docs]: https://learn.microsoft.com/en-us/dotnet/standard/io/file-path-formats#dos-device-paths
     pub fn name(&self) -> &OsString {
         &self.name
     }
@@ -72,8 +72,8 @@ impl WindowsDisplayId {
 impl From<RECT> for Resolution {
     fn from(value: RECT) -> Self {
         Self {
-            width: (value.right - value.left) as _,
-            height: (value.top - value.bottom) as _,
+            width: value.right as _,
+            height: value.bottom as _,
         }
     }
 }
