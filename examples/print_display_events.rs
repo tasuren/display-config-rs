@@ -1,7 +1,7 @@
 use display_observer::{DisplayEvent, DisplayObserver};
 
 fn main() {
-    let monitor = DisplayObserver::new().expect("Failed to create the instance.");
+    let monitor = DisplayObserver::new().expect("Failed to create the instance");
 
     monitor
         .set_callback(|event| match event {
@@ -11,7 +11,7 @@ fn main() {
                 println!("Display configuration changed: {id:?}")
             }
         })
-        .expect("Failed to set the callback.");
+        .expect("Failed to set the callback");
 
-    monitor.run().expect("Failed to run the application.");
+    monitor.run().expect("Failed to run the application");
 }

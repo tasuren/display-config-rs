@@ -94,7 +94,7 @@ impl MacOSDisplayObserver {
     /// [NSApplication]: https://developer.apple.com/documentation/appkit/nsapplication
     pub fn run(&self) {
         let mtm =
-            objc2::MainThreadMarker::new().expect("This function must be called on main thread.");
+            objc2::MainThreadMarker::new().expect("This function must be called on main thread");
         objc2_app_kit::NSApplication::sharedApplication(mtm).run();
     }
 }
