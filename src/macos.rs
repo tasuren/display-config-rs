@@ -201,7 +201,7 @@ unsafe extern "C-unwind" fn display_callback(
             }
         } else if flags.contains(CGDisplayChangeSummaryFlags::RemoveFlag) {
             user_info.tracker.remove(id);
-            DisplayEvent::Removed(id.into())
+            DisplayEvent::Removed { id: id.into() }
         } else if flags.contains(CGDisplayChangeSummaryFlags::SetModeFlag) {
             if let Ok(Some(event)) = user_info.tracker.track_resolution_changed() {
                 event

@@ -7,7 +7,7 @@ fn main() {
         DisplayEvent::Added { id, resolution } => {
             println!("Display added: {id:?}, resolution = {resolution:?}")
         }
-        DisplayEvent::Removed(id) => println!("Display removed: {id:?}"),
+        DisplayEvent::Removed { id } => println!("Display removed: {id:?}"),
         DisplayEvent::ResolutionChanged { id, before, after } => {
             println!("Display resolution changed: {id:?}, before = {before:?}, after = {after:?}")
         }

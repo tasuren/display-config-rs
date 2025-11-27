@@ -57,7 +57,9 @@ pub enum DisplayEvent {
         id: DisplayId,
         resolution: Resolution,
     },
-    Removed(DisplayId),
+    Removed {
+        id: DisplayId,
+    },
     ResolutionChanged {
         id: DisplayId,
         before: Resolution,

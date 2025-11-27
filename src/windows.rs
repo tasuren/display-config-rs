@@ -135,25 +135,30 @@ impl EventTracker {
         let before = std::mem::replace(&mut self.0, get_monitors()?);
         let mut events = SmallVec::new();
 
-        for (key, before_resolution) in before.iter() {
-            if let Some(resolution) = self.0.get(key)
-                && resolution != before_resolution
+        for (id, before) in before.iter() {
+            if let Some(after) = self.0.get(id)
+                && before != after
             {
                 events.push(DisplayEvent::ResolutionChanged {
-                    id: key.clone().into(),
-                    before: *before_resolution,
-                    after: *resolution,
+                    id: id.clone().into(),
+                    before: *before,
+                    after: *after,
                 });
             };
 
-            if !self.0.contains_key(key) {
-                events.push(DisplayEvent::Removed(key.clone().into()));
+            if !self.0.contains_key(id) {
+                events.push(DisplayEvent::Removed {
+                    id: id.clone().into(),
+                });
             }
         }
 
-        for key in self.0.keys() {
-            if !before.contains_key(key) {
-                events.push(DisplayEvent::Added(key.clone().into()));
+        for (id, resolution) in self.0.iter() {
+            if !before.contains_key(id) {
+                events.push(DisplayEvent::Added {
+                    id: id.clone().into(),
+                    resolution: *resolution,
+                });
             }
         }
 
