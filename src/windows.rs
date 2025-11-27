@@ -59,7 +59,7 @@ impl WindowsDisplayId {
     }
 
     /// Device identification strings.
-    /// e.g. `\\?\DISPLAY#GSM5959#5&2c6c93d8&0&UID4352#{e6f07b5f-ee97-4a05-9d08-059f23856a92}`
+    /// e.g. `\\?\DISPLAY1..."`
     ///
     /// See [Microsoft's documentation][docs] for more details.
     ///
