@@ -223,7 +223,7 @@ impl Drop for MacOSDisplayObserver {
         // TODO: Should I warn if it returns error.
         unsafe {
             let user_info = Arc::as_ptr(&self.user_info) as *mut c_void;
-            let _ = CGDisplayRemoveReconfigurationCallback(Some(display_callback), user_info)
+            _ = CGDisplayRemoveReconfigurationCallback(Some(display_callback), user_info)
                 .into_result(());
         }
     }
