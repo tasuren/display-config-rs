@@ -438,13 +438,10 @@ impl WindowsDisplayObserver {
 impl Drop for WindowsDisplayObserver {
     fn drop(&mut self) {
         unsafe {
-            use windows::Win32::UI::WindowsAndMessaging::{
-                DestroyWindow, UnregisterDeviceNotification,
-            };
             if !self.h_notify.is_invalid() {
-                let _ = UnregisterDeviceNotification(self.h_notify);
+                _ = UnregisterDeviceNotification(self.h_notify);
             }
-            let _ = DestroyWindow(self.hwnd);
+            _ = DestroyWindow(self.hwnd);
         }
     }
 }
