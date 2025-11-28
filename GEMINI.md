@@ -57,7 +57,8 @@
 - `Removed`: ディスプレイの削除
 - `Mirrored`: ディスプレイのミラーリング設定
 - `UnMirrored`: ディスプレイのミラーリング解除
-- `ResolutionChanged` ディスプレイの解像度変更
+- `ResolutionChanged`: ディスプレイの解像度変更
+- `OriginChanged`: ディスプレイの場所（原点）変更
 
 ## アーキテクチャ
 

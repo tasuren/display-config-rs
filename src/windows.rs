@@ -233,6 +233,7 @@ pub fn get_displays() -> Result<Vec<Display>, WindowsError> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct DisplayState {
     size: Size,
+    origin: Origin,
     mirrored: bool,
 }
 
@@ -258,9 +259,17 @@ impl EventTracker {
 
         for display in displays.into_iter().map(Into::<WindowsDisplay>::into) {
             let size = display.size()?;
+            let origin = display.origin()?;
             let mirrored = display.is_mirrored();
 
-            cached_state.insert(display.id(), DisplayState { size, mirrored });
+            cached_state.insert(
+                display.id(),
+                DisplayState {
+                    size,
+                    origin,
+                    mirrored,
+                },
+            );
         }
 
         Ok(cached_state)
@@ -284,6 +293,13 @@ impl EventTracker {
                         after: after_state.size,
                     }));
                 };
+
+                if before_state.origin != after_state.origin {
+                    events.push(display_available(Event::OriginChanged {
+                        before: before_state.origin,
+                        after: after_state.origin,
+                    }));
+                }
 
                 if before_state.mirrored != after_state.mirrored {
                     let event = if after_state.mirrored {
@@ -333,7 +349,6 @@ impl WindowsDisplayObserver {
     pub fn new() -> Result<Self, WindowsError> {
         let h_instance = unsafe { GetModuleHandleW(None)? };
         let window_class_name = w!("DisplayMonitorClass");
-
         let window_class = WNDCLASSW {
             style: CS_HREDRAW | CS_VREDRAW,
             lpfnWndProc: Some(wnd_proc),

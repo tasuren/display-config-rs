@@ -146,6 +146,7 @@ pub enum Event {
     Added,
     Removed { id: DisplayId },
     SizeChanged { before: Size, after: Size },
+    OriginChanged { before: Origin, after: Origin },
     Mirrored,
     UnMirrored,
 }

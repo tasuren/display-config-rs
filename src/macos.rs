@@ -4,12 +4,13 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use smallvec::SmallVec;
+
 use objc2_core_foundation::{CGPoint, CGSize};
 use objc2_core_graphics::{
     CGDirectDisplayID, CGDisplayBounds, CGDisplayChangeSummaryFlags, CGDisplayIsMain,
     CGDisplayMirrorsDisplay, CGDisplayRegisterReconfigurationCallback,
-    CGDisplayRemoveReconfigurationCallback, CGDisplayScreenSize, CGError, CGGetActiveDisplayList,
-    kCGNullDirectDisplay,
+    CGDisplayRemoveReconfigurationCallback, CGError, CGGetActiveDisplayList, kCGNullDirectDisplay,
 };
 
 use crate::{Display, DisplayEventCallback, Event, MayBeDisplayAvailable, Origin, Size};
@@ -119,54 +120,80 @@ pub fn get_displays() -> Result<Vec<Display>, MacOSError> {
     Ok(displays)
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct DisplayState {
+    size: Size,
+    origin: Origin,
+}
+
 #[derive(Default)]
 struct EventTracker {
-    cached_size: HashMap<MacOSDisplayId, Size>,
+    cached_state: HashMap<MacOSDisplayId, DisplayState>,
 }
 
 impl EventTracker {
     fn new() -> Result<Self, MacOSError> {
+        Ok(Self {
+            cached_state: Self::collect_new_cached_state()?,
+        })
+    }
+
+    fn collect_new_cached_state() -> Result<HashMap<MacOSDisplayId, DisplayState>, MacOSError> {
         let displays = get_displays()?;
-        let mut cached_size = HashMap::new();
+        let mut cached_state = HashMap::new();
 
         for display in displays.into_iter().map(Into::<MacOSDisplay>::into) {
-            cached_size.insert(display.id(), display.size());
+            cached_state.insert(
+                display.id(),
+                DisplayState {
+                    size: display.size(),
+                    origin: display.origin(),
+                },
+            );
         }
 
-        Ok(Self { cached_size })
+        Ok(cached_state)
     }
 
     fn add(&mut self, id: MacOSDisplayId) {
-        let resolution = CGDisplayScreenSize(id).into();
-        self.cached_size.insert(id, resolution);
+        let display = MacOSDisplay::new(id);
+
+        self.cached_state.insert(
+            id,
+            DisplayState {
+                size: display.size(),
+                origin: display.origin(),
+            },
+        );
     }
 
     fn remove(&mut self, id: MacOSDisplayId) {
-        self.cached_size.remove(&id);
+        self.cached_state.remove(&id);
     }
 
-    fn track_resolution_changed(&mut self) -> Result<Option<Event>, MacOSError> {
-        let displays = get_displays()?;
-        let mut new_cached_size = HashMap::new();
+    fn track_changes(&mut self) -> Result<SmallVec<[Event; 4]>, MacOSError> {
+        let before = std::mem::replace(&mut self.cached_state, Self::collect_new_cached_state()?);
+        let mut events = SmallVec::new();
 
-        for display in displays.into_iter().map(Into::<MacOSDisplay>::into) {
-            new_cached_size.insert(display.id(), display.size());
-        }
+        for (id, before_state) in before.iter() {
+            if let Some(after_state) = self.cached_state.get(id) {
+                if before_state.size != after_state.size {
+                    events.push(Event::SizeChanged {
+                        before: before_state.size,
+                        after: after_state.size,
+                    });
+                }
 
-        let before = std::mem::replace(&mut self.cached_size, new_cached_size);
-
-        for (id, before) in before.iter() {
-            if let Some(after) = self.cached_size.get(id)
-                && before != after
-            {
-                return Ok(Some(Event::SizeChanged {
-                    before: *before,
-                    after: *after,
-                }));
+                if before_state.origin != after_state.origin {
+                    events.push(Event::OriginChanged {
+                        before: before_state.origin,
+                        after: after_state.origin,
+                    });
+                }
             }
         }
 
-        Ok(None)
+        Ok(events)
     }
 }
 
@@ -252,35 +279,41 @@ unsafe extern "C-unwind" fn display_callback(
     };
 
     if user_info.callback.is_some() {
-        let event = if flags.contains(CGDisplayChangeSummaryFlags::AddFlag) {
+        let mut events: SmallVec<[MayBeDisplayAvailable; 4]> = SmallVec::new();
+        let display_available = |event| MayBeDisplayAvailable::Available {
+            display: MacOSDisplay::new(id).into(),
+            event,
+        };
+
+        if flags.contains(CGDisplayChangeSummaryFlags::AddFlag) {
             user_info.tracker.add(id);
-            Event::Added
+            events.push(display_available(Event::Added));
         } else if flags.contains(CGDisplayChangeSummaryFlags::RemoveFlag) {
             user_info.tracker.remove(id);
-            Event::Removed { id: id.into() }
+            events.push(MayBeDisplayAvailable::NotAvailable {
+                event: Event::Removed { id: id.into() },
+            });
         } else if flags.contains(CGDisplayChangeSummaryFlags::MirrorFlag) {
-            Event::Mirrored
+            events.push(display_available(Event::Mirrored));
         } else if flags.contains(CGDisplayChangeSummaryFlags::UnMirrorFlag) {
-            Event::UnMirrored
-        } else if flags.contains(CGDisplayChangeSummaryFlags::SetModeFlag) {
-            if let Ok(Some(event)) = user_info.tracker.track_resolution_changed() {
-                event
-            } else {
-                return;
+            events.push(display_available(Event::UnMirrored));
+        } else if flags.contains(CGDisplayChangeSummaryFlags::SetModeFlag)
+            || flags.contains(CGDisplayChangeSummaryFlags::MovedFlag)
+        {
+            if let Ok(tracked_events) = user_info.tracker.track_changes() {
+                for event in tracked_events {
+                    events.push(display_available(event));
+                }
             }
-        } else {
+        }
+
+        if events.is_empty() {
             return;
-        };
+        }
 
-        let event = if matches!(event, Event::Removed { .. }) {
-            MayBeDisplayAvailable::NotAvailable { event }
-        } else {
-            MayBeDisplayAvailable::Available {
-                display: MacOSDisplay::new(id).into(),
-                event,
-            }
-        };
-
-        (user_info.callback.as_mut().unwrap())(event);
+        let callback = user_info.callback.as_mut().unwrap();
+        for available in events {
+            (callback)(available);
+        }
     }
 }
