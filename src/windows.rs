@@ -92,6 +92,7 @@ fn enum_display_settings(device_name: &OsStr) -> Result<DEVMODEW, WindowsError> 
 fn is_display_mirrored(device_name: &OsStr) -> Result<bool, WindowsError> {
     let mut path_count = 0;
     let mut mode_count = 0;
+
     unsafe {
         GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &mut path_count, &mut mode_count)
             .ok()?;
@@ -271,28 +272,27 @@ impl EventTracker {
         let mut events = SmallVec::new();
 
         for (id, before_state) in before.iter() {
-            let make_display = || WindowsDisplay::new(id.clone()).into();
+            let display_available = |event: Event| MayBeDisplayAvailable::Available {
+                display: WindowsDisplay::new(id.clone()).into(),
+                event,
+            };
 
             if let Some(after_state) = self.cached_state.get(id) {
                 if before_state.size != after_state.size {
-                    events.push(MayBeDisplayAvailable::Available {
-                        display: make_display(),
-                        event: Event::SizeChanged {
-                            before: before_state.size,
-                            after: after_state.size,
-                        },
-                    });
+                    events.push(display_available(Event::SizeChanged {
+                        before: before_state.size,
+                        after: after_state.size,
+                    }));
                 };
 
                 if before_state.mirrored != after_state.mirrored {
-                    events.push(MayBeDisplayAvailable::Available {
-                        display: make_display(),
-                        event: if after_state.mirrored {
-                            Event::Mirrored
-                        } else {
-                            Event::UnMirrored
-                        },
-                    });
+                    let event = if after_state.mirrored {
+                        Event::Mirrored
+                    } else {
+                        Event::UnMirrored
+                    };
+
+                    events.push(display_available(event));
                 }
             } else {
                 events.push(MayBeDisplayAvailable::NotAvailable {
@@ -304,13 +304,13 @@ impl EventTracker {
         }
 
         for id in self.cached_state.keys() {
-            let make_display = || WindowsDisplay::new(id.clone()).into();
+            let display_available = |event: Event| MayBeDisplayAvailable::Available {
+                display: WindowsDisplay::new(id.clone()).into(),
+                event,
+            };
 
             if !before.contains_key(id) {
-                events.push(MayBeDisplayAvailable::Available {
-                    display: make_display(),
-                    event: Event::Added,
-                });
+                events.push(display_available(Event::Added));
             }
         }
 
