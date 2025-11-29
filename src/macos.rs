@@ -113,7 +113,7 @@ pub fn get_displays() -> Result<Vec<Display>, MacOSError> {
     }
 
     let mut displays = Vec::new();
-    for display_id in active_displays {
+    for &display_id in active_displays.iter().take(display_count as usize) {
         displays.push(MacOSDisplay::new(display_id).into());
     }
 
