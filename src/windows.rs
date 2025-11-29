@@ -188,8 +188,8 @@ impl WindowsDisplay {
         Ok(Size { width, height })
     }
 
-    pub fn is_mirrored(&self) -> bool {
-        is_display_mirrored(self.id.device_name()).unwrap_or(false)
+    pub fn is_mirrored(&self) -> Result<bool, WindowsError> {
+        is_display_mirrored(self.id.device_name())
     }
 }
 
@@ -260,7 +260,7 @@ impl EventTracker {
         for display in displays.into_iter().map(Into::<WindowsDisplay>::into) {
             let size = display.size()?;
             let origin = display.origin()?;
-            let mirrored = display.is_mirrored();
+            let mirrored = display.is_mirrored()?;
 
             cached_state.insert(
                 display.id(),
