@@ -150,6 +150,15 @@ impl From<POINTL> for Origin {
     }
 }
 
+impl From<RECT> for Size {
+    fn from(value: RECT) -> Self {
+        Self {
+            width: value.right as _,
+            height: value.bottom as _,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WindowsDisplay {
     id: WindowsDisplayId,
@@ -181,15 +190,6 @@ impl WindowsDisplay {
 
     pub fn is_mirrored(&self) -> bool {
         is_display_mirrored(self.id.device_name()).unwrap_or(false)
-    }
-}
-
-impl From<RECT> for Size {
-    fn from(value: RECT) -> Self {
-        Self {
-            width: value.right as _,
-            height: value.bottom as _,
-        }
     }
 }
 

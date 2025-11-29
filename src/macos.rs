@@ -4,14 +4,13 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use smallvec::SmallVec;
-
 use objc2_core_foundation::{CGPoint, CGSize};
 use objc2_core_graphics::{
     CGDirectDisplayID, CGDisplayBounds, CGDisplayChangeSummaryFlags, CGDisplayIsMain,
     CGDisplayMirrorsDisplay, CGDisplayRegisterReconfigurationCallback,
     CGDisplayRemoveReconfigurationCallback, CGError, CGGetActiveDisplayList, kCGNullDirectDisplay,
 };
+use smallvec::SmallVec;
 
 use crate::{Display, DisplayEventCallback, Event, MayBeDisplayAvailable, Origin, Size};
 
