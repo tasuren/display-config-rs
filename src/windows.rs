@@ -155,25 +155,6 @@ fn is_display_mirrored(device_name: &OsStr) -> Result<bool, WindowsError> {
     Ok(match_count > 1)
 }
 
-fn is_display_primary(device_name: &OsStr) -> Result<bool, WindowsError> {
-    let mut primary = false;
-    let mut data = PrimaryCheckData {
-        target_device_name: device_name,
-        is_primary_result: &mut primary,
-    };
-
-    unsafe {
-        EnumDisplayMonitors(
-            None,
-            None,
-            Some(enum_primary_monitor_proc),
-            LPARAM(&raw mut data as *mut PrimaryCheckData as isize),
-        )
-        .ok()?;
-    }
-    Ok(primary)
-}
-
 impl From<POINTL> for Origin {
     fn from(value: POINTL) -> Self {
         Self {
@@ -192,53 +173,87 @@ impl From<RECT> for Size {
     }
 }
 
-/// A Windows-specific display.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct WindowsDisplay {
-    id: WindowsDisplayId,
-}
-
 // struct definitions at the top, after other `use` statements or similar
 struct PrimaryCheckData<'a> {
     target_device_name: &'a OsStr,
-    is_primary_result: &'a mut bool,
+    is_primary: bool,
+    is_success: bool,
+    error: Option<WindowsError>,
 }
 
-// static callback function
 unsafe extern "system" fn enum_primary_monitor_proc(
     hmonitor: HMONITOR,
     _hdc: HDC,
     _rect: *mut RECT,
     lparam: LPARAM,
 ) -> BOOL {
-    // SAFETY: lparam is guaranteed to be a valid pointer to PrimaryCheckData.
+    // SAFETY: lparam is guaranteed to be a valid pointer to `PrimaryCheckData`.
     let data = unsafe { &mut *(lparam.0 as *mut PrimaryCheckData) };
     let target_device_name = data.target_device_name;
-    let is_primary_result = &mut data.is_primary_result;
 
     let mut monitor_info = MONITORINFOEXW::default();
     monitor_info.monitorInfo.cbSize = std::mem::size_of::<MONITORINFOEXW>() as _;
 
-    if unsafe {
-        GetMonitorInfoW(hmonitor, &raw mut monitor_info as _)
-            .ok()
-            .is_ok()
-    } {
-        let name_slice = &monitor_info.szDevice;
-        let len = name_slice
-            .iter()
-            .position(|&c| c == 0)
-            .unwrap_or(name_slice.len());
-        let current_device_name = OsString::from_wide(&name_slice[..len]);
+    let result = unsafe { GetMonitorInfoW(hmonitor, &raw mut monitor_info as _).ok() };
+    match result {
+        Ok(_) => {
+            let name_slice = &monitor_info.szDevice;
+            let len = name_slice
+                .iter()
+                .position(|&c| c == 0)
+                .unwrap_or(name_slice.len());
+            let current_device_name = OsString::from_wide(&name_slice[..len]);
 
-        if current_device_name == target_device_name {
-            **is_primary_result = (monitor_info.monitorInfo.dwFlags & MONITORINFOF_PRIMARY) != 0;
-            // Found the target monitor, stop enumeration
+            if current_device_name == target_device_name {
+                data.is_primary = (monitor_info.monitorInfo.dwFlags & MONITORINFOF_PRIMARY) != 0;
+                data.is_success = true;
+
+                // Found the target monitor, stop enumeration
+                return false.into();
+            }
+        }
+        Err(e) => {
+            // Something went wrong, stop enumeration.
+            data.error = Some(e);
             return false.into();
         }
     }
 
     true.into()
+}
+
+fn is_display_primary(device_name: &OsStr) -> Result<bool, WindowsError> {
+    let mut data = PrimaryCheckData {
+        target_device_name: device_name,
+        is_primary: false,
+        is_success: false,
+        error: None,
+    };
+
+    let result = unsafe {
+        EnumDisplayMonitors(
+            None,
+            None,
+            Some(enum_primary_monitor_proc),
+            LPARAM(&raw mut data as isize),
+        )
+    };
+
+    if !data.is_success {
+        result.ok()?;
+    }
+
+    if let Some(e) = data.error {
+        Err(e)
+    } else {
+        Ok(data.is_primary)
+    }
+}
+
+/// A Windows-specific display.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WindowsDisplay {
+    id: WindowsDisplayId,
 }
 
 impl WindowsDisplay {
@@ -275,6 +290,14 @@ impl WindowsDisplay {
         Ok(Size { width, height })
     }
 
+    /// Check if this display is the primary monitor.
+    ///
+    /// # Errors
+    /// Returns a [`WindowsError`] if `EnumDisplayMonitors` or `GetMonitorInfoW` fails.
+    pub fn is_primary(&self) -> Result<bool, WindowsError> {
+        is_display_primary(self.id.device_name())
+    }
+
     /// Check if this display is currently mirrored.
     ///
     /// If a display is mirrored, it means its content is identical to another display.
@@ -283,14 +306,6 @@ impl WindowsDisplay {
     /// Returns a [`WindowsError`] if `GetDisplayConfigBufferSizes` or `QueryDisplayConfig` fails.
     pub fn is_mirrored(&self) -> Result<bool, WindowsError> {
         is_display_mirrored(self.id.device_name())
-    }
-
-    /// Check if this display is the primary monitor.
-    ///
-    /// # Errors
-    /// Returns a [`WindowsError`] if `EnumDisplayMonitors` or `GetMonitorInfoW` fails.
-    pub fn is_primary(&self) -> Result<bool, WindowsError> {
-        is_display_primary(self.id.device_name())
     }
 }
 
