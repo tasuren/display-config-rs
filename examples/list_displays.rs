@@ -5,12 +5,11 @@ fn main() {
 
     for display in displays {
         println!("Display ID: {:?}", display.id);
-
         println!("  Origin: {:?}", display.origin);
         println!("  Size: {:?}", display.size);
+        println!("  Scale factor: {:?}", display.scale_factor);
         println!("  Is primary: {:?}", display.is_primary);
         println!("  Is mirrored: {:?}", display.is_mirrored);
-
-        println!();
+        println!()
     }
 }

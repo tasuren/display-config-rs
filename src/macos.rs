@@ -6,9 +6,10 @@ use std::{
 
 use dpi::{LogicalPosition, LogicalSize};
 use objc2_core_graphics::{
-    CGDirectDisplayID, CGDisplayBounds, CGDisplayChangeSummaryFlags, CGDisplayIsMain,
-    CGDisplayMirrorsDisplay, CGDisplayRegisterReconfigurationCallback,
-    CGDisplayRemoveReconfigurationCallback, CGError, CGGetActiveDisplayList, kCGNullDirectDisplay,
+    CGDirectDisplayID, CGDisplayBounds, CGDisplayChangeSummaryFlags, CGDisplayCopyDisplayMode,
+    CGDisplayIsMain, CGDisplayMirrorsDisplay, CGDisplayMode,
+    CGDisplayRegisterReconfigurationCallback, CGDisplayRemoveReconfigurationCallback, CGError,
+    CGGetActiveDisplayList, kCGNullDirectDisplay,
 };
 use smallvec::SmallVec;
 
@@ -38,17 +39,27 @@ impl CGErrorToResult for CGError {
     }
 }
 
+fn get_scale_factor(id: CGDirectDisplayID) -> f64 {
+    let mode = CGDisplayCopyDisplayMode(id);
+    let pixel_width = CGDisplayMode::pixel_width(mode.as_deref());
+    let point_width = CGDisplayMode::width(mode.as_deref());
+
+    pixel_width as f64 / point_width as f64
+}
+
 pub fn get_display(id: MacOSDisplayId) -> Display {
     let bounds = CGDisplayBounds(id);
     let origin = LogicalPosition::new(bounds.origin.x as i32, bounds.origin.y as i32);
     let size = LogicalSize::new(bounds.size.width as u32, bounds.size.height as u32);
     let is_primary = CGDisplayIsMain(id);
     let is_mirrored = CGDisplayMirrorsDisplay(id) != kCGNullDirectDisplay;
+    let scale_factor = get_scale_factor(id);
 
     Display {
         id: id.into(),
         origin,
         size,
+        scale_factor,
         is_primary,
         is_mirrored,
     }

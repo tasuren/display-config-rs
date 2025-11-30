@@ -9,8 +9,11 @@ use dpi::{LogicalPosition, LogicalSize};
 use smallvec::SmallVec;
 use windows::{
     Win32::{
-        Devices::Display::*, Foundation::*, Graphics::Gdi::*, System::LibraryLoader::*,
-        UI::WindowsAndMessaging::*,
+        Devices::Display::*,
+        Foundation::*,
+        Graphics::Gdi::*,
+        System::LibraryLoader::*,
+        UI::{HiDpi::*, WindowsAndMessaging::*},
     },
     core::{BOOL, w},
 };
@@ -185,9 +188,22 @@ unsafe extern "system" fn monitor_enum_proc(
     );
     let is_primary = (monitor_info.monitorInfo.dwFlags & MONITORINFOF_PRIMARY) != 0;
 
-    // We need to check mirroring separately
     let is_mirrored = match is_display_mirrored(id.device_name()) {
         Ok(value) => value,
+        Err(e) => {
+            user_data.result = Err(e);
+            return false.into();
+        }
+    };
+
+    // NOTE: https://learn.microsoft.com/ja-jp/windows/win32/learnwin32/dpi-and-device-independent-pixels#converting-physical-pixels-to-dips
+    const USER_DEFAULT_SCREEN_DPI: u32 = 96;
+    let mut dpi_x = 0;
+    let mut dpi_y = 0;
+
+    let result = unsafe { GetDpiForMonitor(h_monitor, MDT_EFFECTIVE_DPI, &mut dpi_x, &mut dpi_y) };
+    let scale_factor = match result {
+        Ok(_) => dpi_x as f64 / USER_DEFAULT_SCREEN_DPI as f64,
         Err(e) => {
             user_data.result = Err(e);
             return false.into();
@@ -198,6 +214,7 @@ unsafe extern "system" fn monitor_enum_proc(
         id: id.into(),
         origin,
         size,
+        scale_factor,
         is_primary,
         is_mirrored,
     });

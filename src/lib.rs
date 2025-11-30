@@ -83,7 +83,7 @@ use dpi::{LogicalPosition, LogicalSize};
 ///
 /// This struct provides a cross-platform interface to interact with displays.
 /// You can get the display's id, origin, size, and check if it's mirrored.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Display {
     /// The unique identifier of the display.
     pub id: DisplayId,
@@ -91,6 +91,8 @@ pub struct Display {
     pub origin: LogicalPosition<i32>,
     /// The size of the display.
     pub size: LogicalSize<u32>,
+    /// The scale factor of the display.
+    pub scale_factor: f64,
     /// Whether the display is the primary monitor.
     pub is_primary: bool,
     /// Whether the display is mirrored.
