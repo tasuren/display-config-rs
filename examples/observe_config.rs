@@ -11,16 +11,24 @@ fn on_event(event: Event) {
         Event::Removed(id) => {
             println!("Removed ... id = {:?}", id);
         }
-        Event::SizeChanged(display) => {
+        Event::SizeChanged {
+            display,
+            before,
+            after,
+        } => {
             println!(
-                "SizeChanged ... id = {:?}, new size = {:?}",
-                display.id, display.size
+                "SizeChanged ... id = {:?}, before = {:?}, after = {:?}",
+                display.id, before, after
             );
         }
-        Event::OriginChanged(display) => {
+        Event::OriginChanged {
+            display,
+            before,
+            after,
+        } => {
             println!(
-                "OriginChanged ... id = {:?}, new origin = {:?}",
-                display.id, display.origin
+                "OriginChanged ... id = {:?}, before = {:?}, after = {:?}",
+                display.id, before, after
             );
         }
         Event::Mirrored(display) => {

@@ -122,9 +122,17 @@ pub enum Event {
     /// A display was removed.
     Removed(DisplayId),
     /// The size of a display changed.
-    SizeChanged(Display),
+    SizeChanged {
+        display: Display,
+        before: Size,
+        after: Size,
+    },
     /// The origin of a display changed.
-    OriginChanged(Display),
+    OriginChanged {
+        display: Display,
+        before: Origin,
+        after: Origin,
+    },
     /// A display was mirrored.
     Mirrored(Display),
     /// A display was unmirrored.

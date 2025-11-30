@@ -261,11 +261,19 @@ impl EventTracker {
         for (id, before_display) in before.iter() {
             if let Some(after_display) = self.cached_displays.get(id) {
                 if before_display.size != after_display.size {
-                    events.push(Event::SizeChanged((*after_display).clone()));
+                    events.push(Event::SizeChanged {
+                        display: (*after_display).clone(),
+                        before: before_display.size,
+                        after: after_display.size,
+                    });
                 };
 
                 if before_display.origin != after_display.origin {
-                    events.push(Event::OriginChanged((*after_display).clone()));
+                    events.push(Event::OriginChanged {
+                        display: (*after_display).clone(),
+                        before: before_display.origin,
+                        after: after_display.origin,
+                    });
                 }
 
                 if before_display.is_mirrored != after_display.is_mirrored {

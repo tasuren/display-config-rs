@@ -163,11 +163,19 @@ impl EventTracker {
         for (id, before_display) in before.iter() {
             if let Some(after_display) = self.cached_displays.get(id) {
                 if before_display.size != after_display.size {
-                    events.push(Event::SizeChanged((*after_display).clone()));
+                    events.push(Event::SizeChanged {
+                        display: (*after_display).clone(),
+                        before: before_display.size,
+                        after: after_display.size,
+                    });
                 }
 
                 if before_display.origin != after_display.origin {
-                    events.push(Event::OriginChanged((*after_display).clone()));
+                    events.push(Event::OriginChanged {
+                        display: (*after_display).clone(),
+                        before: before_display.origin,
+                        after: after_display.origin,
+                    });
                 }
             }
         }
@@ -288,13 +296,12 @@ unsafe extern "C-unwind" fn display_callback(
             events.push(Event::Mirrored(display_snapshot));
         } else if flags.contains(CGDisplayChangeSummaryFlags::UnMirrorFlag) {
             events.push(Event::UnMirrored(display_snapshot));
-        } else if flags.contains(CGDisplayChangeSummaryFlags::SetModeFlag)
-            || flags.contains(CGDisplayChangeSummaryFlags::MovedFlag)
+        } else if (flags.contains(CGDisplayChangeSummaryFlags::SetModeFlag)
+            || flags.contains(CGDisplayChangeSummaryFlags::MovedFlag))
+            && let Ok(tracked_events) = user_info.tracker.track_changes()
         {
-            if let Ok(tracked_events) = user_info.tracker.track_changes() {
-                for event in tracked_events {
-                    events.push(event);
-                }
+            for event in tracked_events {
+                events.push(event);
             }
         }
 
