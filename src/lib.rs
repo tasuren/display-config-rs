@@ -1,3 +1,5 @@
+use dpi::{LogicalPosition, LogicalSize};
+
 #[cfg(target_os = "macos")]
 pub mod macos;
 #[cfg(target_os = "windows")]
@@ -6,7 +8,7 @@ pub mod windows;
 #[cfg(target_os = "macos")]
 use macos::{
     MacOSDisplayId as PlatformDisplayId, MacOSDisplayObserver as PlatformDisplayObserver,
-    MacOSError as PlatformError, get_displays as get_platform_displays,
+    MacOSError as PlatformError, get_macos_displays as get_platform_displays,
 };
 #[cfg(target_os = "windows")]
 use windows::{
@@ -77,8 +79,6 @@ impl DisplayId {
     }
 }
 
-use dpi::{LogicalPosition, LogicalSize};
-
 /// A display.
 ///
 /// This struct provides a cross-platform interface to interact with displays.
@@ -127,6 +127,7 @@ pub enum Event {
 /// A callback function that is called when a display event occurs.
 pub type DisplayEventCallback = Box<dyn FnMut(Event) + Send + 'static>;
 
+/// A display observer that monitors changes to the display configuration.
 pub struct DisplayObserver {
     inner: PlatformDisplayObserver,
 }
@@ -145,19 +146,23 @@ impl From<DisplayObserver> for PlatformDisplayObserver {
 
 impl DisplayObserver {
     /// Create the display observer instance.
-    ///
-    /// # Platform-specific
-    /// - **macOS**: This will always return `Ok`.
     pub fn new() -> Result<Self, Error> {
         Ok(Self {
             inner: PlatformDisplayObserver::new()?,
         })
     }
 
-    pub fn into_platform_display_observer(self) -> PlatformDisplayObserver {
-        self.inner
+    #[cfg(target_os = "windows")]
+    pub fn windows_display_observer(&self) -> &PlatformDisplayObserver {
+        &self.inner
     }
 
+    #[cfg(target_os = "macos")]
+    pub fn macos_display_observer(&self) -> &PlatformDisplayObserver {
+        &self.inner
+    }
+
+    /// Sets the callback function to be invoked when a display event occurs.
     pub fn set_callback<F>(&self, callback: F)
     where
         F: FnMut(Event) + Send + 'static,
@@ -165,12 +170,14 @@ impl DisplayObserver {
         self.inner.set_callback(Box::new(callback));
     }
 
+    /// Removes the currently set callback function. After calling this, no display events will be dispatched.
+    pub fn remove_callback(&self) {
+        self.inner.remove_callback();
+    }
+
     /// Run the event loop.
     /// Since macOS ui thread must be on main, this function must be called on main thread.
     /// If you call this on non-main thread, this will panic.
-    ///
-    /// # Platform-specific
-    /// - **macOS**: This will always return `Ok`.
     pub fn run(&self) -> Result<(), Error> {
         #[cfg(target_os = "windows")]
         {

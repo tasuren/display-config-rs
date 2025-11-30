@@ -47,7 +47,7 @@ fn get_scale_factor(id: CGDirectDisplayID) -> f64 {
     pixel_width as f64 / point_width as f64
 }
 
-pub fn get_display(id: MacOSDisplayId) -> Display {
+pub fn get_macos_display(id: MacOSDisplayId) -> Display {
     let bounds = CGDisplayBounds(id);
     let origin = LogicalPosition::new(bounds.origin.x as i32, bounds.origin.y as i32);
     let size = LogicalSize::new(bounds.size.width as u32, bounds.size.height as u32);
@@ -94,7 +94,7 @@ impl Display {
 ///
 /// # Errors
 /// This function can return a [`MacOSError`] if there's an issue with Core Graphics.
-pub fn get_displays() -> Result<Vec<Display>, MacOSError> {
+pub fn get_macos_displays() -> Result<Vec<Display>, MacOSError> {
     const MAX_DISPLAYS: u32 = 20;
     let mut active_displays = [0; MAX_DISPLAYS as _];
     let mut display_count = 0;
@@ -110,7 +110,7 @@ pub fn get_displays() -> Result<Vec<Display>, MacOSError> {
 
     let mut displays = Vec::new();
     for &display_id in active_displays.iter().take(display_count as usize) {
-        displays.push(get_display(display_id));
+        displays.push(get_macos_display(display_id));
     }
 
     Ok(displays)
@@ -129,7 +129,7 @@ impl EventTracker {
     }
 
     fn collect_new_cached_state() -> Result<HashMap<MacOSDisplayId, Display>, MacOSError> {
-        let displays = get_displays()?;
+        let displays = get_macos_displays()?;
         let mut cached_state = HashMap::new();
 
         for display in displays {
@@ -213,9 +213,6 @@ impl MacOSDisplayObserver {
     }
 
     /// Sets the callback function to be invoked when a display event occurs.
-    ///
-    /// The provided callback will receive a `Event` enum,
-    /// indicating the nature of the display change.
     pub fn set_callback(&self, callback: DisplayEventCallback) {
         let mut user_info = self.user_info.lock().unwrap();
         user_info.callback = Some(callback);
@@ -278,7 +275,7 @@ unsafe extern "C-unwind" fn display_callback(
     if user_info.callback.is_some() {
         let mut events: SmallVec<[Event; 4]> = SmallVec::new();
         // Always get the fresh state of the display when an event happens.
-        let display_snapshot = get_display(id);
+        let display_snapshot = get_macos_display(id);
 
         if flags.contains(CGDisplayChangeSummaryFlags::AddFlag) {
             user_info.tracker.add(display_snapshot.clone());

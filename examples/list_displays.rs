@@ -1,6 +1,10 @@
 use display_config::get_displays;
 
 fn main() {
+    #[cfg(target_os = "windows")]
+    display_config::windows::set_process_per_monitor_dpi_aware()
+        .expect("Failed to set process as DPI aware");
+
     let displays = get_displays().expect("Failed to get displays");
 
     for display in displays {

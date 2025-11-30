@@ -26,6 +26,26 @@ use crate::{Display, DisplayEventCallback, Event};
 /// [windows::core::Error]: https://docs.rs/windows/latest/windows/core/struct.Error.html
 pub type WindowsError = windows::core::Error;
 
+/// Sets the current process as DPI aware (Per Monitor).
+///
+/// This function calls `SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE)`.
+/// It is recommended to call this function at the very beginning of the application
+/// to ensure that the display information (especially `scale_factor`) is correctly reported.
+///
+/// **Important**: This setting cannot be changed once set for a process.
+/// If you are integrating this crate with a GUI framework (e.g., Winit, Tauri, or others),
+/// it is likely that the framework already handles DPI awareness. Calling this function
+/// in such a scenario might conflict with the framework's own DPI management,
+/// potentially leading to unexpected behavior or crashes. In most cases, it's best to
+/// defer DPI awareness management to your chosen GUI framework or manage it at the
+/// application level very early in the process lifecycle.
+///
+/// # Errors
+/// Returns a [`WindowsError`] if `SetProcessDpiAwareness` fails.
+pub fn set_process_per_monitor_dpi_aware() -> Result<(), WindowsError> {
+    unsafe { SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE) }
+}
+
 /// A Windows-specific unique identifier for a display.
 ///
 /// This ID is based on the [device path][device path] of the display.
