@@ -65,13 +65,17 @@ pub fn get_macos_display(id: MacOSDisplayId) -> Display {
     }
 }
 
-impl Display {
+pub trait DisplayMacOSExt {
     /// Get the [`CGDirectDisplayID`][CGDirectDisplayID] of the primary display if this display is mirrored.
     ///
     /// Returns `None` if the display is not mirrored or is the primary display itself.
     ///
     /// [CGDirectDisplayID]: https://developer.apple.com/documentation/coregraphics/cgdirectdisplayid?language=objc
-    pub fn get_primary_id(&self) -> Option<MacOSDisplayId> {
+    fn get_primary_id(&self) -> Option<MacOSDisplayId>;
+}
+
+impl DisplayMacOSExt for Display {
+    fn get_primary_id(&self) -> Option<MacOSDisplayId> {
         if !self.is_mirrored {
             return None;
         }
