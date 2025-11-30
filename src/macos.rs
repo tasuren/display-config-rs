@@ -4,7 +4,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use objc2_core_foundation::{CGPoint, CGSize};
+use dpi::{LogicalPosition, LogicalSize};
 use objc2_core_graphics::{
     CGDirectDisplayID, CGDisplayBounds, CGDisplayChangeSummaryFlags, CGDisplayIsMain,
     CGDisplayMirrorsDisplay, CGDisplayRegisterReconfigurationCallback,
@@ -12,7 +12,7 @@ use objc2_core_graphics::{
 };
 use smallvec::SmallVec;
 
-use crate::{Display, DisplayEventCallback, Event, Origin, Size};
+use crate::{Display, DisplayEventCallback, Event};
 
 /// The type alias for macOS display ID, which is [`CGDirectDisplayID`][CGDirectDisplayID].
 ///
@@ -38,27 +38,10 @@ impl CGErrorToResult for CGError {
     }
 }
 
-impl From<CGSize> for Size {
-    fn from(value: CGSize) -> Self {
-        Self {
-            width: value.width as _,
-            height: value.height as _,
-        }
-    }
-}
-
-impl From<CGPoint> for Origin {
-    fn from(value: CGPoint) -> Self {
-        Self {
-            x: value.x as _,
-            y: value.y as _,
-        }
-    }
-}
-
 pub fn get_display(id: MacOSDisplayId) -> Display {
-    let origin: Origin = CGDisplayBounds(id).origin.into();
-    let size: Size = CGDisplayBounds(id).size.into();
+    let bounds = CGDisplayBounds(id);
+    let origin = LogicalPosition::new(bounds.origin.x as i32, bounds.origin.y as i32);
+    let size = LogicalSize::new(bounds.size.width as u32, bounds.size.height as u32);
     let is_primary = CGDisplayIsMain(id);
     let is_mirrored = CGDisplayMirrorsDisplay(id) != kCGNullDirectDisplay;
 

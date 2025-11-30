@@ -5,6 +5,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use dpi::{LogicalPosition, LogicalSize};
 use smallvec::SmallVec;
 use windows::{
     Win32::{
@@ -14,7 +15,7 @@ use windows::{
     core::{BOOL, w},
 };
 
-use crate::{Display, DisplayEventCallback, Event, Origin, Size};
+use crate::{Display, DisplayEventCallback, Event};
 
 /// The error type for Windows-specific operations.
 /// This is a type alias for [`windows::core::Error`][windows::core::Error].
@@ -139,24 +140,6 @@ fn is_display_mirrored(device_name: &OsStr) -> Result<bool, WindowsError> {
     Ok(match_count > 1)
 }
 
-impl From<POINTL> for Origin {
-    fn from(value: POINTL) -> Self {
-        Self {
-            x: value.x as _,
-            y: value.y as _,
-        }
-    }
-}
-
-impl From<RECT> for Size {
-    fn from(value: RECT) -> Self {
-        Self {
-            width: (value.right - value.left).unsigned_abs(),
-            height: (value.bottom - value.top).unsigned_abs(),
-        }
-    }
-}
-
 struct EnumDisplayMonitorsUserData {
     displays: Vec<Display>,
     result: Result<(), WindowsError>,
@@ -192,12 +175,14 @@ unsafe extern "system" fn monitor_enum_proc(
     let device_name = OsString::from_wide(&monitor_info.szDevice[..len]);
     let id = WindowsDisplayId::new(device_name);
 
-    let origin = Origin {
-        x: monitor_info.monitorInfo.rcMonitor.left as _,
-        y: monitor_info.monitorInfo.rcMonitor.top as _,
-    };
-
-    let size = Size::from(monitor_info.monitorInfo.rcMonitor);
+    let origin = LogicalPosition::new(
+        monitor_info.monitorInfo.rcMonitor.left,
+        monitor_info.monitorInfo.rcMonitor.top,
+    );
+    let size = LogicalSize::new(
+        (monitor_info.monitorInfo.rcMonitor.right - monitor_info.monitorInfo.rcMonitor.left) as u32,
+        (monitor_info.monitorInfo.rcMonitor.bottom - monitor_info.monitorInfo.rcMonitor.top) as u32,
+    );
     let is_primary = (monitor_info.monitorInfo.dwFlags & MONITORINFOF_PRIMARY) != 0;
 
     // We need to check mirroring separately

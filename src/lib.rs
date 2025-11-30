@@ -77,24 +77,7 @@ impl DisplayId {
     }
 }
 
-/// A point on the screen.
-/// The origin is the top-left corner of the screen.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Origin {
-    /// The x coordinate.
-    pub x: u32,
-    /// The y coordinate.
-    pub y: u32,
-}
-
-/// The size of the screen.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Size {
-    /// The width of the screen.
-    pub width: u32,
-    /// The height of the screen.
-    pub height: u32,
-}
+use dpi::{LogicalPosition, LogicalSize};
 
 /// A display.
 ///
@@ -105,9 +88,9 @@ pub struct Display {
     /// The unique identifier of the display.
     pub id: DisplayId,
     /// The origin of the display.
-    pub origin: Origin,
+    pub origin: LogicalPosition<i32>,
     /// The size of the display.
-    pub size: Size,
+    pub size: LogicalSize<u32>,
     /// Whether the display is the primary monitor.
     pub is_primary: bool,
     /// Whether the display is mirrored.
@@ -124,14 +107,14 @@ pub enum Event {
     /// The size of a display changed.
     SizeChanged {
         display: Display,
-        before: Size,
-        after: Size,
+        before: LogicalSize<u32>,
+        after: LogicalSize<u32>,
     },
     /// The origin of a display changed.
     OriginChanged {
         display: Display,
-        before: Origin,
-        after: Origin,
+        before: LogicalPosition<i32>,
+        after: LogicalPosition<i32>,
     },
     /// A display was mirrored.
     Mirrored(Display),
