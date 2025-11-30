@@ -143,6 +143,25 @@ fn is_display_mirrored(device_name: &OsStr) -> Result<bool, WindowsError> {
     Ok(match_count > 1)
 }
 
+fn get_scale_factor(hdc: HDC, h_monitor: HMONITOR) -> f64 {
+    // NOTE: https://learn.microsoft.com/ja-jp/windows/win32/learnwin32/dpi-and-device-independent-pixels#converting-physical-pixels-to-dips
+    const USER_DEFAULT_SCREEN_DPI: u32 = 96;
+
+    let mut dpi_x = 0;
+    let mut dpi_y = 0;
+    let result = unsafe { GetDpiForMonitor(h_monitor, MDT_EFFECTIVE_DPI, &mut dpi_x, &mut dpi_y) };
+
+    if result.is_err() {
+        dpi_x = if unsafe { IsProcessDPIAware().as_bool() } {
+            unsafe { GetDeviceCaps(Some(hdc), LOGPIXELSX) as _ }
+        } else {
+            USER_DEFAULT_SCREEN_DPI
+        };
+    };
+
+    dpi_x as f64 / USER_DEFAULT_SCREEN_DPI as f64
+}
+
 struct EnumDisplayMonitorsUserData {
     displays: Vec<Display>,
     result: Result<(), WindowsError>,
@@ -150,7 +169,7 @@ struct EnumDisplayMonitorsUserData {
 
 unsafe extern "system" fn monitor_enum_proc(
     h_monitor: HMONITOR,
-    _hdc: HDC,
+    hdc: HDC,
     _rect: *mut RECT,
     user_data: LPARAM,
 ) -> BOOL {
@@ -195,20 +214,7 @@ unsafe extern "system" fn monitor_enum_proc(
             return false.into();
         }
     };
-
-    // NOTE: https://learn.microsoft.com/ja-jp/windows/win32/learnwin32/dpi-and-device-independent-pixels#converting-physical-pixels-to-dips
-    const USER_DEFAULT_SCREEN_DPI: u32 = 96;
-    let mut dpi_x = 0;
-    let mut dpi_y = 0;
-
-    let result = unsafe { GetDpiForMonitor(h_monitor, MDT_EFFECTIVE_DPI, &mut dpi_x, &mut dpi_y) };
-    let scale_factor = match result {
-        Ok(_) => dpi_x as f64 / USER_DEFAULT_SCREEN_DPI as f64,
-        Err(e) => {
-            user_data.result = Err(e);
-            return false.into();
-        }
-    };
+    let scale_factor = get_scale_factor(hdc, h_monitor);
 
     user_data.displays.push(Display {
         id: id.into(),
