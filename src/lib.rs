@@ -1,3 +1,43 @@
+//! display-config is a Rust crate for retrieving display configurations and
+//! observing changes (monitor plug/unplug, resolution changes, etc.) on
+//! Windows and macOS.
+//!
+//! # Windows-Specific Notes on DPI Awareness
+//!
+//! On Windows, to correctly retrieve display `scale_factor` and other display
+//! metrics, your application needs to declare its
+//! [DPI Awareness](https://learn.microsoft.com/en-us/windows/win32/hidpi/high-dpi-desktop-application-development-on-windows).
+//! If your application does not declare DPI awareness, Windows may virtualize
+//! DPI settings for your process, leading to incorrect values (e.g., `scale_factor` always being `1.0`).
+//!
+//! You can set your process's DPI awareness programmatically using the
+//! `display_config::windows::set_process_per_monitor_dpi_aware()` function
+//! provided by this crate. It is recommended to call this function at the
+//! very beginning of your application's lifecycle, before any display-related
+//! operations are performed.
+//!
+//! ```no_run
+//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     // Set the process as DPI aware for correct display metric reporting
+//!     #[cfg(target_os = "windows")]
+//!     display_config::windows::set_process_per_monitor_dpi_aware()?;
+//!
+//!     let displays = display_config::get_displays()?;
+//!     for display in displays {
+//!         println!("Display ID: {:?}", display.id);
+//!         println!("  Scale Factor: {}", display.scale_factor);
+//!     }
+//!
+//!     Ok(())
+//! }
+//! ```
+//!
+//! **Important Considerations**:
+//! - DPI awareness cannot be changed once set for a process.
+//! - If you are using a GUI framework, it often handles
+//!   DPI awareness itself. Calling this function might conflict with the
+//!   framework's settings. In such cases, defer to the framework's DPI management.
+
 use dpi::{LogicalPosition, LogicalSize};
 
 #[cfg(target_os = "macos")]
@@ -168,7 +208,7 @@ impl DisplayObserver {
 
     /// Run the event loop.
     /// Since macOS ui thread must be on main, this function must be called on main thread.
-    /// If you call this on non-main thread, this will panic.
+    /// If you call this on non-main thread, this will panic on macOS.
     pub fn run(&self) -> Result<(), Error> {
         #[cfg(target_os = "windows")]
         {

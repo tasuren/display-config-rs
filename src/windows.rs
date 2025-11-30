@@ -1,3 +1,5 @@
+//! This module contains the Windows-specific implementation of the display configuration.
+
 use std::{
     collections::HashMap,
     ffi::{OsStr, OsString, c_void},
