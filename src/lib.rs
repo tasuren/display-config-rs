@@ -41,11 +41,6 @@
 use dpi::{LogicalPosition, LogicalSize};
 
 #[cfg(target_os = "macos")]
-pub mod macos;
-#[cfg(target_os = "windows")]
-pub mod windows;
-
-#[cfg(target_os = "macos")]
 use macos::{
     MacOSDisplayId as PlatformDisplayId, MacOSDisplayObserver as PlatformDisplayObserver,
     MacOSError as PlatformError, get_macos_displays as get_platform_displays,
@@ -55,6 +50,11 @@ use windows::{
     WindowsDisplayId as PlatformDisplayId, WindowsDisplayObserver as PlatformDisplayObserver,
     WindowsError as PlatformError, get_windows_displays as get_platform_displays,
 };
+
+#[cfg(target_os = "macos")]
+pub mod macos;
+#[cfg(target_os = "windows")]
+pub mod windows;
 
 /// The error type for this crate.
 #[derive(Debug, thiserror::Error)]
@@ -159,6 +159,10 @@ pub enum Event {
 pub type DisplayEventCallback = Box<dyn FnMut(Event) + Send + 'static>;
 
 /// A display observer that monitors changes to the display configuration.
+///
+/// # Platform-specifics
+/// - **Windows**: Internally creates an invisible window to receive `WM_DISPLAYCHANGE` events.
+/// - **macOS**: Uses `CGDisplayRegisterReconfigurationCallback` to track display configuration changes.
 pub struct DisplayObserver {
     inner: PlatformDisplayObserver,
 }
@@ -181,16 +185,6 @@ impl DisplayObserver {
         Ok(Self {
             inner: PlatformDisplayObserver::new()?,
         })
-    }
-
-    #[cfg(target_os = "windows")]
-    pub fn windows_display_observer(&self) -> &PlatformDisplayObserver {
-        &self.inner
-    }
-
-    #[cfg(target_os = "macos")]
-    pub fn macos_display_observer(&self) -> &PlatformDisplayObserver {
-        &self.inner
     }
 
     /// Sets the callback function to be invoked when a display event occurs.

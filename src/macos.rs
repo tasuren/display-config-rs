@@ -47,7 +47,7 @@ fn get_scale_factor(id: CGDirectDisplayID) -> f64 {
     pixel_width as f64 / point_width as f64
 }
 
-pub fn get_macos_display(id: MacOSDisplayId) -> Display {
+fn get_macos_display(id: MacOSDisplayId) -> Display {
     let bounds = CGDisplayBounds(id);
     let origin = LogicalPosition::new(bounds.origin.x as i32, bounds.origin.y as i32);
     let size = LogicalSize::new(bounds.size.width as u32, bounds.size.height as u32);
@@ -65,40 +65,7 @@ pub fn get_macos_display(id: MacOSDisplayId) -> Display {
     }
 }
 
-pub trait DisplayMacOSExt {
-    /// Get the [`CGDirectDisplayID`][CGDirectDisplayID] of the primary display if this display is mirrored.
-    ///
-    /// Returns `None` if the display is not mirrored or is the primary display itself.
-    ///
-    /// [CGDirectDisplayID]: https://developer.apple.com/documentation/coregraphics/cgdirectdisplayid?language=objc
-    fn get_primary_id(&self) -> Option<MacOSDisplayId>;
-}
-
-impl DisplayMacOSExt for Display {
-    fn get_primary_id(&self) -> Option<MacOSDisplayId> {
-        if !self.is_mirrored {
-            return None;
-        }
-
-        let id = self.id.macos_id();
-        let primary_id = CGDisplayMirrorsDisplay(*id);
-
-        if primary_id == kCGNullDirectDisplay {
-            None
-        } else {
-            Some(primary_id)
-        }
-    }
-}
-
-/// Get a list of all currently active macOS displays.
-///
-/// # Returns
-/// A `Result` containing a `Vec` of [`Display`] objects on success, or a [`MacOSError`] on failure.
-///
-/// # Errors
-/// This function can return a [`MacOSError`] if there's an issue with Core Graphics.
-pub fn get_macos_displays() -> Result<Vec<Display>, MacOSError> {
+pub(crate) fn get_macos_displays() -> Result<Vec<Display>, MacOSError> {
     const MAX_DISPLAYS: u32 = 20;
     let mut active_displays = [0; MAX_DISPLAYS as _];
     let mut display_count = 0;
@@ -192,7 +159,7 @@ struct UserInfo {
 /// This observer uses `CGDisplayRegisterReconfigurationCallback` to receive notifications
 /// about display changes. It also caches display information to track changes
 /// like resolution and origin, which are not directly provided by the callback.
-pub struct MacOSDisplayObserver {
+pub(crate) struct MacOSDisplayObserver {
     user_info: Arc<Mutex<UserInfo>>,
 }
 

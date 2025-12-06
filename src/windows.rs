@@ -251,7 +251,7 @@ unsafe extern "system" fn monitor_enum_proc(
 }
 
 /// Get a list of all currently active Windows displays.
-pub fn get_windows_displays() -> Result<Vec<Display>, WindowsError> {
+pub(crate) fn get_windows_displays() -> Result<Vec<Display>, WindowsError> {
     let mut user_data: EnumDisplayMonitorsUserData = EnumDisplayMonitorsUserData {
         displays: Vec::new(),
         result: Ok(()),
@@ -352,7 +352,7 @@ struct ObserverContext {
 ///
 /// This observer creates a hidden window to receive `WM_DISPLAYCHANGE` messages
 /// and uses device notification APIs to track display events.
-pub struct WindowsDisplayObserver {
+pub(crate) struct WindowsDisplayObserver {
     hwnd: HWND,
     h_notify: HDEVNOTIFY,
     ctx: Arc<Mutex<ObserverContext>>,
