@@ -152,6 +152,7 @@ impl EventTracker {
 struct UserInfo {
     callback: Option<DisplayEventCallback>,
     tracker: EventTracker,
+    callback_revision: u64,
 }
 
 /// A macOS-specific display observer that monitors changes to the display configuration.
@@ -172,6 +173,7 @@ impl MacOSDisplayObserver {
         let user_info = Arc::new(Mutex::new(UserInfo {
             callback: None,
             tracker: EventTracker::new()?,
+            callback_revision: 0,
         }));
 
         unsafe {
@@ -186,6 +188,7 @@ impl MacOSDisplayObserver {
     /// Sets the callback function to be invoked when a display event occurs.
     pub fn set_callback(&self, callback: DisplayEventCallback) {
         let mut user_info = self.user_info.lock().unwrap();
+        user_info.callback_revision = user_info.callback_revision.wrapping_add(1);
         user_info.callback = Some(callback);
     }
 
@@ -193,6 +196,7 @@ impl MacOSDisplayObserver {
     /// After calling this, no display events will be dispatched.
     pub fn remove_callback(&self) {
         let mut user_info = self.user_info.lock().unwrap();
+        user_info.callback_revision = user_info.callback_revision.wrapping_add(1);
         user_info.callback = None;
     }
 
@@ -215,8 +219,15 @@ impl Drop for MacOSDisplayObserver {
     fn drop(&mut self) {
         unsafe {
             let user_info = Arc::as_ptr(&self.user_info) as *mut c_void;
-            _ = CGDisplayRemoveReconfigurationCallback(Some(display_callback), user_info)
-                .into_result(());
+            if let Err(e) =
+                CGDisplayRemoveReconfigurationCallback(Some(display_callback), user_info)
+                    .into_result(())
+            {
+                panic!(
+                    "failed to remove CGDisplay reconfiguration callback in drop: {:?}",
+                    e
+                );
+            }
         }
     }
 }
@@ -239,11 +250,14 @@ unsafe extern "C-unwind" fn display_callback(
     // The `MacOSDisplayObserver` keeps the Arc alive.
     // SAFETY: `user_info` is the pointer to the `Arc<Mutex<CallbackState>>` created in new().
     let user_info = unsafe { &*(user_info as *const Mutex<UserInfo>) };
-    let Ok(mut user_info) = user_info.lock() else {
-        return;
-    };
+    let (events, callback_revision, mut callback) = {
+        let Ok(mut user_info) = user_info.lock() else {
+            return;
+        };
+        let Some(callback) = user_info.callback.take() else {
+            return;
+        };
 
-    if user_info.callback.is_some() {
         let mut events: SmallVec<[Event; 4]> = SmallVec::new();
         // Always get the fresh state of the display when an event happens.
         let display_snapshot = get_macos_display(id);
@@ -268,12 +282,24 @@ unsafe extern "C-unwind" fn display_callback(
         }
 
         if events.is_empty() {
+            user_info.callback = Some(callback);
             return;
         }
 
-        let callback = user_info.callback.as_mut().unwrap();
-        for event in events {
-            (callback)(event);
-        }
+        (events, user_info.callback_revision, callback)
+    };
+
+    for event in events {
+        (callback)(event);
+    }
+
+    // Only restore the callback when no other thread updated it while we were
+    // executing events without the lock. The revision check prevents replacing
+    // a newer callback (or a removal) with this older one.
+    if let Ok(mut user_info) = user_info.lock()
+        && user_info.callback.is_none()
+        && user_info.callback_revision == callback_revision
+    {
+        user_info.callback = Some(callback);
     }
 }

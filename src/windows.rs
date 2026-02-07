@@ -413,11 +413,17 @@ impl WindowsDisplayObserver {
         };
 
         let h_notify = unsafe {
-            RegisterDeviceNotificationW(
+            match RegisterDeviceNotificationW(
                 hwnd.into(),
                 &mut filter as *mut _ as *const c_void,
                 DEVICE_NOTIFY_WINDOW_HANDLE,
-            )?
+            ) {
+                Ok(handle) => handle,
+                Err(e) => {
+                    _ = DestroyWindow(hwnd);
+                    return Err(e);
+                }
+            }
         };
 
         // Store the state pointer in the window user data so WndProc can access it.
@@ -458,7 +464,15 @@ impl WindowsDisplayObserver {
     pub fn run(&self) -> Result<(), WindowsError> {
         unsafe {
             let mut msg = MSG::default();
-            while GetMessageW(&mut msg, None, 0, 0).as_bool() {
+            loop {
+                let message_state = GetMessageW(&mut msg, None, 0, 0).0;
+                if message_state == -1 {
+                    return Err(WindowsError::from_thread());
+                }
+                if message_state == 0 {
+                    break;
+                }
+
                 _ = TranslateMessage(&msg);
                 DispatchMessageW(&msg);
             }
