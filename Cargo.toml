@@ -45,3 +45,6 @@ features = [
     "Win32_Devices_Display",
     "Win32_UI_HiDpi",
 ]
+
+[package.metadata.docs.rs]
+targets = ["x86_64-pc-windows-msvc", "aarch64-apple-darwin"]
