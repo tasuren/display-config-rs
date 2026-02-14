@@ -3,6 +3,9 @@
 A Rust crate for retrieving display configurations and observing changes
 (monitor plug/unplug, resolution changes, etc.) on Windows and macOS.
 
+[![Crates.io Version](https://img.shields.io/crates/v/display-config)](https://crates.io/crates/display-config)
+[![docs.rs](https://img.shields.io/docsrs/display-config)](https://docs.rs/display-config/latest/window_observer/)
+
 ## Features
 
 - **Get Display Info**: Retrieve a list of connected displays with details like:
